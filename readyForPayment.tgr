@@ -1,0 +1,38 @@
+trigger readyForPayment on Asset (after update) {
+       List<Asset> ass = new List<Asset>(); 
+        List<Asset> asses = new List<Asset>(); 
+        List<Account> Id = new List<Account>(); 
+        List<dsfs__DocuSign_Status__c> docu = new List<dsfs__DocuSign_Status__c>(); 
+        List<Opportunity> oppt = new List<Opportunity>(); 
+        Set<String> whatIDs = new Set<String>();
+        Set<String> whatAcctIDs = new Set<String>();
+    for(Asset a : Trigger.new){ //initites the trigger
+        
+            
+        if(a.AccountId != trigger.oldMap.get(a.Id).AccountId){ //if accountId is not the old one start
+
+            docu = [SELECT  dsfs__Completed_Date_Time__c, dsfs__Company__c,  dsfs__Opportunity__c, dsfs__Envelope_Status__c FROM dsfs__DocuSign_Status__c WHERE (dsfs__Company__c =: a.AccountId AND dsfs__Completed_Date_Time__c != null) ORDER by dsfs__Completed_Date_Time__c DESC LIMIT 1]; 
+            //pulls timedate, company, oppt where Id equals that of the asset and order by complete date descending which start from the last timedate value and only one meaning it only has the lastest value  
+            whatAcctIDs.add(a.AccountId); //Adds assets accountId to neurtral string so it can be matched assess query 
+            asses = [SELECT account.Id FROM Asset WHERE account.Id =: whatAcctIDs]; //Assets with same id as new asset just added 
+            
+            for (dsfs__DocuSign_Status__c d : docu){
+              whatIDs.add(d.dsfs__Opportunity__c); //adds the Oppt Id of dsfs__DocuSign_Status__c in docu to whatIDs
+            }
+            
+            oppt = [SELECT Id FROM Opportunity WHERE Id =: whatIDs]; //Gets oppts with the same id as the dsfs__DocuSign_Status__c docus
+           
+            
+           
+              if (asses.size() <= 1){ //Sees if items in asses array is <= 1 because that would be that there are no assets added to that account yet. Current triggering asset might already be counted by salesforce so count for 1 instead of 0 just to be save 
+               for(Opportunity o : oppt ){ 
+                 o.Ready_for_Payment__c = true; //Marks ready for payment as true 
+            }
+            }
+            }
+    
+            
+        }
+    update oppt; //Performs actual update to oppt 
+        
+    }
